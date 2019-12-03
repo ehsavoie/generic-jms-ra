@@ -41,8 +41,8 @@ import org.jboss.logging.Logger;
 
 /**
  * The the connection factory implementation for the JMS RA.
- * <p/>
- * <p/>
+ *
+ *
  * This object will be the QueueConnectionFactory or TopicConnectionFactory
  * which clients will use to create connections.
  *

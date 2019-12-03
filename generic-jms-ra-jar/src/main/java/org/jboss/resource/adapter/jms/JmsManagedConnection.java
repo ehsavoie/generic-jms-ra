@@ -47,7 +47,6 @@ import javax.jms.XATopicConnectionFactory;
 import javax.jms.XATopicSession;
 import javax.naming.Context;
 import javax.naming.NamingException;
-import javax.resource.NotSupportedException;
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionEvent;
 import javax.resource.spi.ConnectionEventListener;

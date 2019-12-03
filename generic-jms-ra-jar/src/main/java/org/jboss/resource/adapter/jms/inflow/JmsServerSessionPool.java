@@ -57,7 +57,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
     /**
      * The server sessions
      */
-    ArrayList serverSessions = new ArrayList();
+    ArrayList<ServerSession> serverSessions = new ArrayList<>();
 
     /**
      * Whether the pool is stopped
@@ -104,6 +104,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
         teardownSessions();
     }
 
+    @Override
     public ServerSession getServerSession() throws JMSException {
         boolean trace = log.isTraceEnabled();
         if (trace) {
@@ -120,7 +121,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
                     if (stopped) {
                         throw new Exception("Cannot get a server session after the pool is stopped");
                     } else if (sessionsSize > 0) {
-                        result = (ServerSession) serverSessions.remove(sessionsSize - 1);
+                        result = serverSessions.remove(sessionsSize - 1);
                         break;
                     } else {
                         try {
@@ -165,7 +166,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
      */
     protected void setupSessions() throws Exception {
         JmsActivationSpec spec = activation.getActivationSpec();
-        ArrayList clonedSessions = null;
+        ArrayList<ServerSession> clonedSessions = null;
 
         // Create the sessions
         synchronized (serverSessions) {
@@ -174,7 +175,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
                 serverSessions.add(session);
             }
             sessionCount = serverSessions.size();
-            clonedSessions = (ArrayList) serverSessions.clone();
+            clonedSessions = (ArrayList<ServerSession>) serverSessions.clone();
         }
 
         // Start the sessions

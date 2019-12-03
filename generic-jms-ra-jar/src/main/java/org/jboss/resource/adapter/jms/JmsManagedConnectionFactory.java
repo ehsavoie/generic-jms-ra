@@ -137,8 +137,9 @@ public class JmsManagedConnectionFactory implements ManagedConnectionFactory {
         info = getInfo(info);
         JmsCred cred = JmsCred.getJmsCred(this, subject, info);
 
-        if (trace)
+        if (trace) {
             log.trace("Looking for connection matching credentials: " + cred);
+        }
 
         // Traverse the pooled connections and look for a match, return first
         // found
