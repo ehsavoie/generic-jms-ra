@@ -132,8 +132,7 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
             } else {
                 throw e;
             }
-        }
-        finally {
+        } finally {
             if (session != null) {
                 session.close();
             }
@@ -237,6 +236,13 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
             JmsSession session = s.allocateConnection(sessionMode == Session.SESSION_TRANSACTED, sessionMode, AGNOSTIC);
             return new GenericJmsContext(s, session);
         } catch (JMSException e) {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (JMSException e2) {
+                    // ignored by intention
+                }
+            }
             JMSException jmse = findRootJMSException(e);
             if (jmse instanceof JMSSecurityException) {
                 throw new JMSSecurityRuntimeException(jmse.getMessage());

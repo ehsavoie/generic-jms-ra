@@ -21,8 +21,14 @@
  */
 package org.jboss.resource.adapter.jms;
 
-import org.jboss.logging.Logger;
-import org.jboss.resource.adapter.jms.inflow.JmsActivation;
+import java.io.PrintWriter;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -58,14 +64,9 @@ import javax.resource.spi.ManagedConnectionMetaData;
 import javax.resource.spi.SecurityException;
 import javax.security.auth.Subject;
 import javax.transaction.xa.XAResource;
-import java.io.PrintWriter;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.Vector;
-import java.util.concurrent.TimeUnit;
+
+import org.jboss.logging.Logger;
+import org.jboss.resource.adapter.jms.inflow.JmsActivation;
 
 /**
  * <p>Managed Connection, manages one or more JMS sessions.
@@ -140,18 +141,19 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     private JmsConnectionRequestInfo info;
     private String user;
     private String pwd;
-    private boolean isDestroyed;
+    private volatile boolean isSetUp;
+    private volatile boolean isDestroyed;
 
     private ReentrantLock lock = new ReentrantLock(true);
 
     // Physical JMS connection stuff
-    private Connection con;
-    private Session session;
-    private XASession xaSession;
-    private XAResource xaResource;
-    private boolean xaTransacted;
-    private JMSContext context;
-    private XAJMSContext xaContext;
+    private Connection con = null;
+    private Session session = null;
+    private XASession xaSession = null;
+    private XAResource xaResource = null;
+    private boolean xaTransacted = false;
+    private JMSContext context = null;
+    private XAJMSContext xaContext = null;
 
     /**
      * Holds all current JmsSession handles.
@@ -233,7 +235,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         user = cred.name; // Basically meaningless
 
         if (isDestroyed) {
-            throw new IllegalStateException("ManagedConnection already destroyd");
+            throw new IllegalStateException("ManagedConnection already destroyed");
         }
 
         // Create a handle
@@ -275,8 +277,10 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         if (isDestroyed || con == null) {
             return;
         }
-
-        isDestroyed = true;
+        synchronized (this) {
+            if (isDestroyed || con == null) {
+                return;
+            }
 
         try {
             con.setExceptionListener(null);
@@ -292,15 +296,22 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                 if (session != null) {
                     session.close();
                 }
+            } catch (JMSException e) {
+                log.debug("Error closing session " + this, e);
+            }
+            try {
                 if (xaTransacted && xaSession != null) {
                     xaSession.close();
                 }
             } catch (JMSException e) {
-                log.debug("Error closing session " + this, e);
+                log.debug("Error closing xaSession " + this, e);
             }
             con.close();
         } catch (Throwable e) {
             throw new ResourceException("Could not properly close the session and connection", e);
+        } finally {
+            isDestroyed = true;
+        }
         }
     }
 
@@ -664,6 +675,14 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
      * @throws ResourceException
      */
     private void setup() throws ResourceException {
+        if (isSetUp) {
+            return;
+        }
+        synchronized (this) {
+            if (isSetUp) {
+                return;
+            }
+
         boolean trace = log.isTraceEnabled();
         ClassLoader oldTCCL = SecurityActions.getThreadContextClassLoader();
         try {
@@ -708,10 +727,10 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             } else {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE:
-                        session = ((QueueConnection)con).createQueueSession(transacted, ack);
+                        session = ((QueueConnection) con).createQueueSession(transacted, ack);
                         break;
                     case JmsConnectionFactory.TOPIC:
-                        session = ((TopicConnection)con).createTopicSession(transacted, ack);
+                        session = ((TopicConnection) con).createTopicSession(transacted, ack);
                         break;
                     default:
                         session = con.createSession(transacted, ack);
@@ -725,6 +744,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
 
             log.debug("xaSession=" + xaSession + ", Session=" + session);
             log.debug("transacted=" + transacted + ", ack=" + ack);
+             isSetUp = true;
         } catch (NamingException | JMSException e) {
             throw new ResourceException("Unable to setup connection", e);
         } finally {
@@ -732,6 +752,8 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         }
 
     }
+
+	}
 
     /**
      * Create a connection from the given factory.  An XA connection will
@@ -758,66 +780,152 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         Connection connection = null;
 
         if (factory instanceof XAConnectionFactory) {
-            XAConnectionFactory qFactory = (XAConnectionFactory) factory;
+            XAConnectionFactory xaConnFactory = (XAConnectionFactory) factory;
 
             if (username != null) {
                 switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        connection = ((XAQueueConnectionFactory)qFactory).createXAQueueConnection(username, password);
+                    case JmsConnectionFactory.QUEUE: {
+                        connection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
-                    case JmsConnectionFactory.TOPIC:
-                        connection = ((XATopicConnectionFactory)qFactory).createXATopicConnection(username, password);
+                    }
+                    case JmsConnectionFactory.TOPIC: {
+                        connection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
+                    }
+                    case JmsConnectionFactory.AGNOSTIC: {
+                        connection = xaConnFactory.createXAConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
+                        break;
+                    }
                     default:
-                        connection = qFactory.createXAConnection(username, password);
+                        try {
+                            xaContext = xaConnFactory.createXAContext(username, password);
+                            context = xaContext.getContext();
+                            connection = new JmsConnectionContext(context);
+                        } catch (Exception e) {
+                            log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
+                                    + e.getMessage(), e);
+                            throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
+                        }
                         break;
                 }
-                xaContext = qFactory.createXAContext(username, password);
-                context = xaContext.getContext();
             } else {
                 switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        connection = ((XAQueueConnectionFactory)qFactory).createXAQueueConnection();
+                    case JmsConnectionFactory.QUEUE: {
+                        connection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
-                    case JmsConnectionFactory.TOPIC:
-                        connection = ((XATopicConnectionFactory)qFactory).createXATopicConnection();
+                    }
+                    case JmsConnectionFactory.TOPIC: {
+                        connection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
+                    }
+                    case JmsConnectionFactory.AGNOSTIC: {
+                        connection = xaConnFactory.createXAConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
+                        break;
+                    }
                     default:
-                        connection = qFactory.createXAConnection();
+                        try {
+                            xaContext = xaConnFactory.createXAContext();
+                            context = xaContext.getContext();
+                            connection = new JmsConnectionContext(context);
+                        } catch (Exception e) {
+                            log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
+                                    + e.getMessage(), e);
+                            throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
+                        }
                         break;
                 }
-                xaContext = qFactory.createXAContext();
-                context = xaContext.getContext();
             }
             log.debug("created XAConnection: " + connection);
         } else if (factory instanceof ConnectionFactory) {
-            ConnectionFactory qFactory = (ConnectionFactory) factory;
+            ConnectionFactory nonXAConnFactory = (ConnectionFactory) factory;
             if (username != null) {
                 switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        connection = ((QueueConnectionFactory)qFactory).createQueueConnection(username, password);
+                    case JmsConnectionFactory.QUEUE: {
+                        connection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
-                    case JmsConnectionFactory.TOPIC:
-                        connection = ((TopicConnectionFactory)qFactory).createTopicConnection(username, password);
+                    }
+                    case JmsConnectionFactory.TOPIC: {
+                        connection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
+                    }
+                    case JmsConnectionFactory.AGNOSTIC: {
+                        connection = nonXAConnFactory.createConnection(username, password);
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
+                        break;
+                    }
                     default:
-                        connection = qFactory.createConnection(username, password);
+                        try {
+                            context = nonXAConnFactory.createContext(username, password);
+                            connection = new JmsConnectionContext(context);
+                        } catch (Exception e) {
+                            log.fatal(
+                                    "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
+                                    e);
+                            throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
+                        }
                         break;
                 }
-                context = qFactory.createContext(username, password);
             } else {
                 switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        connection = ((QueueConnectionFactory)qFactory).createQueueConnection();
+                    case JmsConnectionFactory.QUEUE: {
+                        connection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
-                    case JmsConnectionFactory.TOPIC:
-                        connection = ((TopicConnectionFactory)qFactory).createTopicConnection();
+                    }
+                    case JmsConnectionFactory.TOPIC: {
+                        connection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
                         break;
+                    }
+                    case JmsConnectionFactory.AGNOSTIC: {
+                        connection = nonXAConnFactory.createConnection();
+                        context = null;
+                        Session session = connection.createSession();
+                        connection = new JmsConnectionSession(connection, session);
+                        break;
+                    }
                     default:
-                        connection = qFactory.createConnection();
+                        try {
+                            context = nonXAConnFactory.createContext();
+                            connection = new JmsConnectionContext(context);
+                        } catch (Exception e) {
+                            log.fatal(
+                                    "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
+                                    e);
+                            throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
+                        }
                         break;
                 }
-                context = qFactory.createContext();
             }
 
             log.debug("created " + mcf.getProperties().getSessionDefaultType() + " connection: " + connection);

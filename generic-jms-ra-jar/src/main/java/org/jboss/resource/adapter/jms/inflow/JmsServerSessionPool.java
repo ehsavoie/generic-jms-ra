@@ -57,7 +57,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
     /**
      * The server sessions
      */
-    ArrayList<ServerSession> serverSessions = new ArrayList<>();
+    ArrayList<JmsServerSession> serverSessions = new ArrayList<>();
 
     /**
      * Whether the pool is stopped
@@ -68,7 +68,6 @@ public class JmsServerSessionPool implements ServerSessionPool {
      * The number of sessions
      */
     int sessionCount = 0;
-
 
     /**
      * Create a new session pool
@@ -166,7 +165,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
      */
     protected void setupSessions() throws Exception {
         JmsActivationSpec spec = activation.getActivationSpec();
-        ArrayList<ServerSession> clonedSessions = null;
+        ArrayList<JmsServerSession> clonedSessions = null;
 
         // Create the sessions
         synchronized (serverSessions) {
@@ -175,7 +174,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
                 serverSessions.add(session);
             }
             sessionCount = serverSessions.size();
-            clonedSessions = (ArrayList<ServerSession>) serverSessions.clone();
+            clonedSessions = (ArrayList<JmsServerSession>) serverSessions.clone();
         }
 
         // Start the sessions
@@ -208,7 +207,8 @@ public class JmsServerSessionPool implements ServerSessionPool {
                 int forceClearAttempts = activation.getActivationSpec().getForceClearAttempts();
                 long forceClearInterval = activation.getActivationSpec().getForceClearOnShutdownInterval();
 
-                log.trace(this + " force clear behavior in effect. Waiting for " + forceClearInterval + " milliseconds for " + forceClearAttempts + " attempts.");
+                log.trace(this + " force clear behavior in effect. Waiting for " + forceClearInterval
+                        + " milliseconds for " + forceClearAttempts + " attempts.");
 
                 while ((sessionCount > 0) && (attempts < forceClearAttempts)) {
                     try {
@@ -248,7 +248,8 @@ public class JmsServerSessionPool implements ServerSessionPool {
             Topic topic = (Topic) activation.getDestination();
             String subscriptionName = spec.getSubscriptionName();
             if (spec.isDurable()) {
-                consumer = connection.createDurableConnectionConsumer(topic, subscriptionName, selector, this, maxMessages);
+                consumer = connection.createDurableConnectionConsumer(topic, subscriptionName, selector, this,
+                        maxMessages);
             } else {
                 consumer = connection.createConnectionConsumer(topic, selector, this, maxMessages);
             }

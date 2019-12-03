@@ -38,18 +38,14 @@ import javax.jms.TemporaryQueue;
 import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
 import javax.jms.TopicSession;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.resource.Referenceable;
 import javax.resource.spi.ConnectionManager;
 import javax.resource.spi.ManagedConnectionFactory;
-import javax.transaction.Status;
-import javax.transaction.TransactionSynchronizationRegistry;
 
 import org.jboss.logging.Logger;
 //import org.jboss.resource.connectionmanager.JTATransactionChecker;
+import org.jboss.resource.adapter.jms.util.TransactionUtils;
 
 /**
  * Implements the JMS Connection API and produces {@link JmsSession} objects.
@@ -61,7 +57,6 @@ import org.jboss.logging.Logger;
 public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
 
     private static final Logger log = Logger.getLogger(JmsSessionFactoryImpl.class);
-    private static final String TRANSACTION_SYNCHRONIZATION_REGISTRY_LOOKUP = "java:comp/TransactionSynchronizationRegistry";
 
     /**
      * Are we closed?
@@ -108,9 +103,6 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
      * The temporary topics
      */
     private final HashSet<TemporaryTopic> tempTopics = new HashSet<>();
-
-    // Cached reference to the transaction sync registry to determine if a transaction is active
-    private transient TransactionSynchronizationRegistry transactionSynchronizationRegistry;
 
     public JmsSessionFactoryImpl(final ManagedConnectionFactory mcf,
             final ConnectionManager cm,
@@ -372,7 +364,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
             throws JMSException {
         checkClosed();
 
-        if (isInTransaction()) {
+        if (TransactionUtils.isInTransaction()) {
             transacted = true;
             acknowledgeMode = 0;
         }
@@ -385,7 +377,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
         checkClosed();
 
         boolean transacted = sessionMode == Session.SESSION_TRANSACTED;
-        if (isInTransaction()) {
+        if (TransactionUtils.isInTransaction()) {
             transacted = true;
             sessionMode = 0;
         }
@@ -397,7 +389,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
         boolean transacted = false;
         int sessionMode = Session.AUTO_ACKNOWLEDGE;
 
-        if (isInTransaction()) {
+        if (TransactionUtils.isInTransaction()) {
             transacted = true;
             sessionMode = 0;
         }
@@ -469,44 +461,6 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
     protected void checkClosed() throws IllegalStateException {
         if (closed) {
             throw new IllegalStateException("The connection is closed");
-        }
-    }
-
-    /**
-     * check whether there is an active transaction.
-     */
-    private boolean isInTransaction() {
-        TransactionSynchronizationRegistry tsr = getTransactionSynchronizationRegistry();
-        boolean inTx = tsr.getTransactionStatus() == Status.STATUS_ACTIVE;
-        return inTx;
-    }
-
-    /**
-     * lookup the transactionSynchronizationRegistry and cache it.
-     */
-    private TransactionSynchronizationRegistry getTransactionSynchronizationRegistry() {
-        TransactionSynchronizationRegistry cachedTSR = transactionSynchronizationRegistry;
-        if (cachedTSR == null) {
-            cachedTSR = (TransactionSynchronizationRegistry) lookup(TRANSACTION_SYNCHRONIZATION_REGISTRY_LOOKUP);
-            transactionSynchronizationRegistry = cachedTSR;
-        }
-        return cachedTSR;
-    }
-
-    private Object lookup(String name) {
-        Context ctx = null;
-        try {
-            ctx = new InitialContext();
-            return ctx.lookup(name);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            if (ctx != null) {
-                try {
-                    ctx.close();
-                } catch (NamingException e) {
-                }
-            }
         }
     }
 

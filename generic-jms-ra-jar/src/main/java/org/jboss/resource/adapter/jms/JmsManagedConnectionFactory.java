@@ -25,6 +25,7 @@ import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.Set;
 
+import javax.jms.Connection;
 import javax.jms.ConnectionMetaData;
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionManager;
