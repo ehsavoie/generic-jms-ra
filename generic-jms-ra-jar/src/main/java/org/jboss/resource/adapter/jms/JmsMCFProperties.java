@@ -133,25 +133,28 @@ public class JmsMCFProperties implements java.io.Serializable {
      * @throws ResourceException if type was not a valid type.
      */
     public void setSessionDefaultType(String type) throws ResourceException {
-        if (type.equals(QUEUE_TYPE))
+        if (QUEUE_TYPE.equals(type)) {
             this.type = JmsConnectionFactory.QUEUE;
-        else if (type.equals(TOPIC_TYPE))
+        } else if (TOPIC_TYPE.equals(type)) {
             this.type = JmsConnectionFactory.TOPIC;
-        else if (type.equals(JMS_CONTEXT_TYPE))
+        } else if (JMS_CONTEXT_TYPE.equals(type)) {
             this.type = JmsConnectionFactory.JMS_CONTEXT;
-        else
+        } else {
             this.type = JmsConnectionFactory.AGNOSTIC;
+        }
     }
 
     public String getSessionDefaultType() {
-        if (type == JmsConnectionFactory.QUEUE)
-            return QUEUE_TYPE;
-        else if (type == JmsConnectionFactory.TOPIC)
-            return TOPIC_TYPE;
-        else if (type == JmsConnectionFactory.JMS_CONTEXT)
-            return JMS_CONTEXT_TYPE;
-        else
-            return AGNOSTIC_TYPE;
+        switch (type) {
+            case JmsConnectionFactory.QUEUE:
+                return QUEUE_TYPE;
+            case JmsConnectionFactory.TOPIC:
+                return TOPIC_TYPE;
+            case JmsConnectionFactory.JMS_CONTEXT:
+                return JMS_CONTEXT_TYPE;
+            default:
+                return AGNOSTIC_TYPE;
+        }
     }
 
     /**

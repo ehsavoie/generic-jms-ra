@@ -229,11 +229,11 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
 
     @Override
     public JMSContext createContext(String userName, String password, int sessionMode) {
-        JmsSessionFactoryImpl s = new JmsSessionFactoryImpl(mcf, cm, AGNOSTIC);
+        JmsSessionFactoryImpl s = new JmsSessionFactoryImpl(mcf, cm, JMS_CONTEXT);
         s.setUserName(userName);
         s.setPassword(password);
         try {
-            JmsSession session = s.allocateConnection(sessionMode == Session.SESSION_TRANSACTED, sessionMode, AGNOSTIC);
+            JmsSession session = s.allocateConnection(sessionMode == Session.SESSION_TRANSACTED, sessionMode, JMS_CONTEXT);
             return new GenericJmsContext(s, session);
         } catch (JMSException e) {
             if (s != null) {

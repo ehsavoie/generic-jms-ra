@@ -451,11 +451,11 @@ public class JmsActivationSpec implements ActivationSpec {
             log.trace("validate " + this);
         }
 
-        if (destination == null || destination.isBlank()) {
+        if (destination == null || !"".equals(destination.trim())) {
             throw new InvalidPropertyException("destination is mandatory");
         }
 
-        if (connectionFactory == null || connectionFactory.isBlank()) {
+        if (connectionFactory == null || !"".equals(connectionFactory.trim())) {
             throw new InvalidPropertyException("connectionFactory is mandatory");
         }
     }

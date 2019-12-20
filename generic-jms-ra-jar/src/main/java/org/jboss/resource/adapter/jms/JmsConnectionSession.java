@@ -3,7 +3,6 @@ package org.jboss.resource.adapter.jms;
 import java.io.Serializable;
 
 import javax.jms.BytesMessage;
-import javax.jms.CompletionListener;
 import javax.jms.Connection;
 import javax.jms.ConnectionConsumer;
 import javax.jms.ConnectionMetaData;
@@ -12,7 +11,6 @@ import javax.jms.ExceptionListener;
 import javax.jms.JMSConsumer;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
-import javax.jms.JMSProducer;
 import javax.jms.JMSRuntimeException;
 import javax.jms.MapMessage;
 import javax.jms.Message;
@@ -35,7 +33,6 @@ import javax.jms.TopicConnection;
 import javax.jms.TopicSession;
 import javax.jms.TopicSubscriber;
 import javax.jms.XAConnection;
-import javax.jms.XAJMSContext;
 import javax.jms.XAQueueConnection;
 import javax.jms.XAQueueSession;
 import javax.jms.XASession;
@@ -51,8 +48,8 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
 
     private static final Logger log = Logger.getLogger(JmsConnectionSession.class);
 
-    private Connection connection;
-    private Session session;
+    private final Connection connection;
+    private final Session session;
     private XAConnection xaConnection;
     private XASession xaSession;
 
@@ -90,16 +87,16 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     // XAConnection API
     @Override
     public XASession createXASession() throws JMSException {
-        if (xaConnection == null) {
-            throw new JMSException("Not an XA compliant JMS session context");
+        if (xaConnection != null) {
+            return xaConnection.createXASession();
         }
-        return xaConnection.createXASession();
+        throw new JMSException("Not an XA compliant JMS session context");
     }
 
     // Session API
     @Override
     public BytesMessage createBytesMessage() throws JMSException {
-            if (session == null) {
+        if (session == null) {
             throw new JMSException("No valid JMS session context");
         }
         return session.createBytesMessage();
@@ -183,24 +180,27 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     public void commit() throws JMSException {
         if (session != null) {
             session.commit();
+        } else {
+            throw new JMSException("No valid JMS session context");
         }
-        throw new JMSException("No valid JMS session context");
     }
 
     @Override
     public void rollback() throws JMSException {
         if (session != null) {
             session.rollback();
+        } else {
+            throw new JMSException("No valid JMS session context");
         }
-        throw new JMSException("No valid JMS session context");
     }
 
     @Override
     public void recover() throws JMSException {
         if (session != null) {
             session.recover();
+        } else {
+            throw new JMSException("No valid JMS session context");
         }
-        throw new JMSException("No valid JMS session context");
     }
 
     @Override
@@ -217,8 +217,9 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     public void run() {
         if (session != null) {
             session.run();
+        } else {
+            throw new IllegalStateException("No valid JMS session context");
         }
-        throw new IllegalStateException("No valid JMS session context");
     }
 
     @Override
@@ -374,8 +375,9 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     public void unsubscribe(String name) throws JMSException {
         if (session != null) {
             session.unsubscribe(name);
+        } else {
+            throw new JMSException("No valid JMS session context");
         }
-        throw new JMSException("No valid JMS session context");
     }
 
     // Connection API
@@ -389,7 +391,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
             log.debug("Connection is NOT transacted; setting acknowledgeMode=" + acknowledgeMode);
             return connection.createSession(false, acknowledgeMode);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -417,7 +419,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
             log.debug("Connection is NOT transacted; setting acknowledgeMode=" + acknowledgeMode);
             return connection.createSession(false, acknowledgeMode);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -425,7 +427,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         if (session != null) {
             return connection.createSession();
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -433,15 +435,16 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         if (session != null) {
             return connection.getClientID();
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
     public void setClientID(String clientID) throws JMSException {
         if (session != null) {
             connection.setClientID(clientID);
+        } else {
+            throw new JMSException("No valid JMS connection session");
         }
-        throw new JMSException("No valid JMS connection context");
     }
 
     @Override
@@ -449,7 +452,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         if (session != null) {
             return connection.getMetaData();
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -457,39 +460,43 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         if (session != null) {
             return connection.getExceptionListener();
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
     public void setExceptionListener(ExceptionListener listener) throws JMSException {
         if (session != null) {
             connection.setExceptionListener(listener);
+        } else {
+            throw new JMSException("No valid JMS connection session");
         }
-        throw new JMSException("No valid JMS connection context");
     }
 
     @Override
     public void start() throws JMSException {
         if (session != null) {
             connection.start();
+        } else {
+            throw new JMSException("No valid JMS connection session");
         }
-        throw new JMSException("No valid JMS connection context");
     }
 
     @Override
     public void stop() throws JMSException {
         if (session != null) {
             connection.stop();
+        } else {
+            throw new JMSException("No valid JMS connection session");
         }
-        throw new JMSException("No valid JMS connection context");
     }
 
     @Override
     public void close() throws JMSException {
         if (session != null) {
             connection.close();
+        } else {
+            throw new JMSException("No valid JMS connection session");
         }
-        throw new JMSException("No valid JMS connection context");
     }
 
     @Override
@@ -498,7 +505,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         if (session != null) {
             return connection.createConnectionConsumer(destination, messageSelector, sessionPool, maxMessages);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -508,7 +515,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
             return connection.createSharedConnectionConsumer(topic, subscriptionName, messageSelector, sessionPool,
                     maxMessages);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -518,7 +525,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
             return connection.createDurableConnectionConsumer(topic, subscriptionName, messageSelector, sessionPool,
                     maxMessages);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     @Override
@@ -528,7 +535,7 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
             return connection.createSharedDurableConnectionConsumer(topic, subscriptionName, messageSelector,
                     sessionPool, maxMessages);
         }
-        throw new JMSException("No valid JMS connection context");
+        throw new JMSException("No valid JMS connection session");
     }
 
     // (XA)QueueConnectionAPI
@@ -584,8 +591,6 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
         }
         throw new JMSException("JMS connection context does not implement TopicConnection");
     }
-
-
 
     public static class JMSConsumerToTopicSubscriber implements TopicSubscriber {
 

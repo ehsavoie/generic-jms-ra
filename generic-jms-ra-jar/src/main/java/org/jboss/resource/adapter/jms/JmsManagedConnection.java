@@ -22,6 +22,7 @@
 package org.jboss.resource.adapter.jms;
 
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -702,10 +703,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             if (info.getClientID() != null && !info.getClientID().equals(con.getClientID())) {
                 con.setClientID(info.getClientID());
             }
-            con.setExceptionListener(this);
-            if (trace) {
-                log.trace("created connection: " + con);
-            }
 
             if (con instanceof XAConnection && transacted) {
                 switch (mcf.getProperties().getType()) {
@@ -722,7 +719,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                         session = xaSession.getSession();
                         break;
                 }
-
                 xaTransacted = true;
             } else {
                 switch (mcf.getProperties().getType()) {
@@ -741,10 +737,14 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                             "It will not be able to participate in a Global UOW");
                 }
             }
+            con.setExceptionListener(this);
+            if (trace) {
+                log.trace("created connection: " + con);
+            }
 
             log.debug("xaSession=" + xaSession + ", Session=" + session);
             log.debug("transacted=" + transacted + ", ack=" + ack);
-             isSetUp = true;
+            isSetUp = true;
         } catch (NamingException | JMSException e) {
             throw new ResourceException("Unable to setup connection", e);
         } finally {
@@ -785,27 +785,24 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             if (username != null) {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
-                        connection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection(username, password);
+                        Connection realConnection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
-                        connection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection(username, password);
+                        Connection realConnection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
-                        connection = xaConnFactory.createXAConnection(username, password);
+                        Connection realConnection = xaConnFactory.createXAConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
-                    default:
+                    case JmsConnectionFactory.JMS_CONTEXT:
                         try {
                             xaContext = xaConnFactory.createXAContext(username, password);
                             context = xaContext.getContext();
@@ -820,27 +817,24 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             } else {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
-                        connection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection();
+                        Connection realConnection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
-                        connection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection();
+                        Connection realConnection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
-                        connection = xaConnFactory.createXAConnection();
+                        Connection realConnection = xaConnFactory.createXAConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
                         break;
                     }
-                    default:
+                    case JmsConnectionFactory.JMS_CONTEXT:
                         try {
                             xaContext = xaConnFactory.createXAContext();
                             context = xaContext.getContext();
@@ -859,27 +853,24 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             if (username != null) {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
-                        connection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection(username, password);
+                        Connection realConnection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
-                        connection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection(username, password);
+                        Connection realConnection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
-                        connection = nonXAConnFactory.createConnection(username, password);
+                        Connection realConnection = nonXAConnFactory.createConnection(username, password);
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
-                    default:
+                    case JmsConnectionFactory.JMS_CONTEXT:
                         try {
                             context = nonXAConnFactory.createContext(username, password);
                             connection = new JmsConnectionContext(context);
@@ -894,27 +885,24 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             } else {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
-                        connection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection();
+                        Connection realConnection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
-                        connection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection();
+                        Connection realConnection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
-                        connection = nonXAConnFactory.createConnection();
+                        Connection realConnection = nonXAConnFactory.createConnection();
                         context = null;
-                        Session session = connection.createSession();
-                        connection = new JmsConnectionSession(connection, session);
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
                         break;
                     }
-                    default:
+                    case JmsConnectionFactory.JMS_CONTEXT:
                         try {
                             context = nonXAConnFactory.createContext();
                             connection = new JmsConnectionContext(context);
@@ -933,5 +921,21 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             throw new IllegalArgumentException("factory is invalid: " + factory);
         }
         return connection;
+    }
+
+    private boolean hasMethod(Object object, String method) {
+        try {
+            object.getClass().getDeclaredMethod(method);
+        } catch (NoSuchMethodException | java.lang.SecurityException ex) {
+            return false;
+        }
+        return true;
+    }
+
+    private Session createSession(Connection connection, boolean xaTransacted) throws JMSException {
+        if(hasMethod(connection, "createSession")) {
+            return connection.createSession();
+        }
+        return connection.createSession(xaTransacted, Session.AUTO_ACKNOWLEDGE);
     }
 }
