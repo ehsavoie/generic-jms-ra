@@ -57,7 +57,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
     /**
      * The server sessions
      */
-    ArrayList<JmsServerSession> serverSessions = new ArrayList<>();
+    final ArrayList<JmsServerSession> serverSessions = new ArrayList<>();
 
     /**
      * Whether the pool is stopped
@@ -163,6 +163,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
      *
      * @throws Exception for any error
      */
+    @SuppressWarnings("unchecked")
     protected void setupSessions() throws Exception {
         JmsActivationSpec spec = activation.getActivationSpec();
         ArrayList<JmsServerSession> clonedSessions = null;
@@ -179,7 +180,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
 
         // Start the sessions
         for (int i = 0; i < clonedSessions.size(); ++i) {
-            JmsServerSession session = (JmsServerSession) clonedSessions.get(i);
+            JmsServerSession session = clonedSessions.get(i);
             session.setup();
         }
     }
@@ -195,7 +196,7 @@ public class JmsServerSessionPool implements ServerSessionPool {
 
             // Stop inactive sessions
             for (int i = 0; i < serverSessions.size(); ++i) {
-                JmsServerSession session = (JmsServerSession) serverSessions.get(i);
+                JmsServerSession session = serverSessions.get(i);
                 session.teardown();
                 --sessionCount;
             }
