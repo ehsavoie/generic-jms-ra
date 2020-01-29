@@ -39,11 +39,12 @@ public class JmsConnectionRequestInfo implements ConnectionRequestInfo {
     private String clientID;
 
     private boolean transacted = true;
-    private int acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
+    private int acknowledgeMode = Session.SESSION_TRANSACTED;
     private int type = JmsConnectionFactory.AGNOSTIC;
 
     /**
      * Creats with the MCF configured properties.
+     * @param prop
      */
     public JmsConnectionRequestInfo(JmsMCFProperties prop) {
         this.userName = prop.getUserName();
@@ -54,6 +55,9 @@ public class JmsConnectionRequestInfo implements ConnectionRequestInfo {
 
     /**
      * Create with specified properties.
+     * @param transacted
+     * @param acknowledgeMode
+     * @param type
      */
     public JmsConnectionRequestInfo(final boolean transacted, final int acknowledgeMode, final int type) {
         this.transacted = transacted;
@@ -154,5 +158,13 @@ public class JmsConnectionRequestInfo implements ConnectionRequestInfo {
             hashCode += clientID.hashCode();
         }
         return hashCode;
+    }
+
+    @Override
+    public String toString() {
+        return "JmsConnectionRequestInfo{" + "userName=" + userName
+                + ", password=" + password + ", clientID=" + clientID
+                + ", transacted=" + transacted
+                + ", acknowledgeMode=" + acknowledgeMode + ", type=" + type + '}';
     }
 }

@@ -366,7 +366,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
 
         if (TransactionUtils.isInTransaction()) {
             transacted = true;
-            acknowledgeMode = 0;
+            acknowledgeMode = Session.SESSION_TRANSACTED;
         }
         return allocateConnection(transacted, acknowledgeMode, type);
     }
@@ -379,7 +379,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
         boolean transacted = sessionMode == Session.SESSION_TRANSACTED;
         if (TransactionUtils.isInTransaction()) {
             transacted = true;
-            sessionMode = 0;
+            sessionMode = Session.SESSION_TRANSACTED;
         }
         return allocateConnection(transacted, sessionMode, type);
     }
@@ -391,7 +391,7 @@ public class JmsSessionFactoryImpl implements JmsSessionFactory, Referenceable {
 
         if (TransactionUtils.isInTransaction()) {
             transacted = true;
-            sessionMode = 0;
+            sessionMode = Session.SESSION_TRANSACTED;
         }
         return allocateConnection(transacted, sessionMode, type);
     }

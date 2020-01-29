@@ -384,8 +384,8 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     @Override
     public Session createSession(boolean transacted, int acknowledgeMode) throws JMSException {
         if (session != null) {
-            if (connection instanceof XAConnection || TransactionUtils.isInTransaction()) {
-                log.debug("Connection is JTA transacted; setting acknowledgeMode=" + Session.SESSION_TRANSACTED);
+            if ((transacted && connection instanceof XAConnection) || TransactionUtils.isInTransaction()) {
+                log.debug("Connection is JTA transacted; setting acknowledgeMode to SESSION_TRANSACTED");
                 return connection.createSession(true, Session.SESSION_TRANSACTED);
             }
             log.debug("Connection is NOT transacted; setting acknowledgeMode=" + acknowledgeMode);
@@ -397,8 +397,8 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
     @Override
     public Session createSession(int sessionMode) throws JMSException {
         if (session != null) {
-            if (connection instanceof XAConnection || TransactionUtils.isInTransaction()) {
-                log.debug("Connection is JTA transacted; setting acknowledgeMode=" + Session.SESSION_TRANSACTED);
+            if ((sessionMode == JMSContext.SESSION_TRANSACTED && connection instanceof XAConnection) || TransactionUtils.isInTransaction()) {
+                log.debug("Connection is JTA transacted; setting acknowledgeMode to SESSION_TRANSACTED");
                 return connection.createSession(Session.SESSION_TRANSACTED);
             }
             int acknowledgeMode = -1;
@@ -416,10 +416,24 @@ public class JmsConnectionSession implements Connection, XAConnection, Session, 
                     acknowledgeMode = Session.CLIENT_ACKNOWLEDGE;
                     break;
             }
-            log.debug("Connection is NOT transacted; setting acknowledgeMode=" + acknowledgeMode);
+            log.debug("Connection is NOT transacted; setting acknowledgeMode to" + getAckMode(sessionMode));
             return connection.createSession(false, acknowledgeMode);
         }
         throw new JMSException("No valid JMS connection session");
+    }
+
+    private String getAckMode(int ack) {
+        switch (ack) {
+                case JMSContext.SESSION_TRANSACTED:
+                    return "SESSION_TRANSACTED";
+                case JMSContext.AUTO_ACKNOWLEDGE:
+                    return "AUTO_ACKNOWLEDGE";
+                case JMSContext.DUPS_OK_ACKNOWLEDGE:
+                    return "DUPS_OK_ACKNOWLEDGE";
+                case JMSContext.CLIENT_ACKNOWLEDGE:
+                    return "CLIENT_ACKNOWLEDGE";
+            }
+        return "UNKNOWN_ACKNOWLEDGE";
     }
 
     @Override

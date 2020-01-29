@@ -23,7 +23,8 @@ import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
 
 /**
- * Mapper class for JMSProducer and JMSConsumer to the JMS 1.1 equivalent. *
+ * Mapper class for JMSProducer and JMSConsumer to the JMS 1.1 equivalent. 
+ *
  * @author Emmanuel Hugonnet (c) 2017 Red Hat, inc.
  */
 public class JMSConsumerToMessageConsumer implements MessageConsumer {

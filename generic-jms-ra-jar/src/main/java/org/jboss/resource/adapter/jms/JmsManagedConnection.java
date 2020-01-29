@@ -70,40 +70,47 @@ import org.jboss.logging.Logger;
 import org.jboss.resource.adapter.jms.inflow.JmsActivation;
 
 /**
- * <p>Managed Connection, manages one or more JMS sessions.
+ * <p>
+ * Managed Connection, manages one or more JMS sessions.
  * <p/>
- * <p>Every ManagedConnection will have a physical JMSConnection under the
- * hood. This may leave out several session, as specifyed in 5.5.4 Multiple
- * Connection Handles. Thread safe semantics is provided
+ * <p>
+ * Every ManagedConnection will have a physical JMSConnection under the hood.
+ * This may leave out several session, as specifyed in 5.5.4 Multiple Connection
+ * Handles. Thread safe semantics is provided
  * <p/>
- * <p>Hm. If we are to follow the example in 6.11 this will not work. We would
- * have to use the SAME session. This means we will have to guard against
- * concurrent access. We use a stack, and only allowes the handle at the
- * top of the stack to do things.
+ * <p>
+ * Hm. If we are to follow the example in 6.11 this will not work. We would have
+ * to use the SAME session. This means we will have to guard against concurrent
+ * access. We use a stack, and only allowes the handle at the top of the stack
+ * to do things.
  * <p/>
- * <p>As to transactions we some fairly hairy alternatives to handle:
- * XA - we get an XA. We may now only do transaction through the
- * XAResource, since a XASession MUST throw exceptions in commit etc. But
- * since XA support implies LocatTransaction support, we will have to use
- * the XAResource in the LocalTransaction class.
- * LocalTx - we get a normal session. The LocalTransaction will then work
- * against the normal session api.
+ * <p>
+ * As to transactions we some fairly hairy alternatives to handle: XA - we get
+ * an XA. We may now only do transaction through the XAResource, since a
+ * XASession MUST throw exceptions in commit etc. But since XA support implies
+ * LocatTransaction support, we will have to use the XAResource in the
+ * LocalTransaction class. LocalTx - we get a normal session. The
+ * LocalTransaction will then work against the normal session api.
  * <p/>
- * <p>An invokation of JMS MAY BE DONE in none transacted context. What do we
- * do then? How much should we leave to the user???
+ * <p>
+ * An invokation of JMS MAY BE DONE in none transacted context. What do we do
+ * then? How much should we leave to the user???
  * <p/>
- * <p>One possible solution is to use transactions any way, but under the hood.
- * If not LocalTransaction or XA has been aquired by the container, we have
- * to do the commit in send and publish. (CHECK is the container required
- * to get a XA every time it uses a managed connection? No its is not, only
- * at creation!)
+ * <p>
+ * One possible solution is to use transactions any way, but under the hood. If
+ * not LocalTransaction or XA has been aquired by the container, we have to do
+ * the commit in send and publish. (CHECK is the container required to get a XA
+ * every time it uses a managed connection? No its is not, only at creation!)
  * <p/>
- * <p>Does this mean that a session one time may be used in a transacted env,
- * and another time in a not transacted.
+ * <p>
+ * Does this mean that a session one time may be used in a transacted env, and
+ * another time in a not transacted.
  * <p/>
- * <p>Maybe we could have this simple rule:
+ * <p>
+ * Maybe we could have this simple rule:
  * <p/>
- * <p>If a user is going to use non trans:
+ * <p>
+ * If a user is going to use non trans:
  * <ul>
  * <li>mark that i ra deployment descr
  * <li>Use a JmsProviderAdapter with non XA factorys
@@ -111,31 +118,34 @@ import org.jboss.resource.adapter.jms.inflow.JmsActivation;
  * <li>trans attrinbutes in deploy descr NOT GOOD
  * </ul>
  * <p/>
- * <p>From the JMS tutorial:
- * "When you create a session in an enterprise bean, the container ignores
- * the arguments you specify, because it manages all transactional
- * properties for enterprise beans."
+ * <p>
+ * From the JMS tutorial: "When you create a session in an enterprise bean, the
+ * container ignores the arguments you specify, because it manages all
+ * transactional properties for enterprise beans."
  * <p/>
- * <p>And further:
- * "You do not specify a message acknowledgment mode when you create a
- * message-driven bean that uses container-managed transactions. The
+ * <p>
+ * And further: "You do not specify a message acknowledgment mode when you
+ * create a message-driven bean that uses container-managed transactions. The
  * container handles acknowledgment automatically."
  * <p/>
- * <p>On Session or Connection:
- * <p>From Tutorial:
- * "A JMS API resource is a JMS API connection or a JMS API session." But in
- * the J2EE spec only connection is considered a resource.
+ * <p>
+ * On Session or Connection:
+ * <p>
+ * From Tutorial: "A JMS API resource is a JMS API connection or a JMS API
+ * session." But in the J2EE spec only connection is considered a resource.
  * <p/>
- * <p>Not resolved: connectionErrorOccurred: it is verry hard to know from the
+ * <p>
+ * Not resolved: connectionErrorOccurred: it is verry hard to know from the
  * exceptions thrown if it is a connection error. Should we register an
- * ExceptionListener and mark al handles as errounous? And then let them
- * send the event and throw an exception?
+ * ExceptionListener and mark al handles as errounous? And then let them send
+ * the event and throw an exception?
  *
  * @author <a href="mailto:peter.antman@tim.se">Peter Antman</a>.
  * @author <a href="mailto:jason@planet57.com">Jason Dillon</a>
  * @author <a href="mailto:adrian@jboss.com">Adrian Brock</a>
  */
 public class JmsManagedConnection implements ManagedConnection, ExceptionListener {
+
     private static final Logger log = Logger.getLogger(JmsManagedConnection.class);
 
     private JmsManagedConnectionFactory mcf;
@@ -176,9 +186,9 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
      * @throws ResourceException
      */
     public JmsManagedConnection(final JmsManagedConnectionFactory mcf,
-                                final ConnectionRequestInfo info,
-                                final String user,
-                                final String pwd)
+            final ConnectionRequestInfo info,
+            final String user,
+            final String pwd)
             throws ResourceException {
         this.mcf = mcf;
 
@@ -195,7 +205,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             } catch (Throwable ignored) {
             }
             if (t instanceof ResourceException) {
-                throw (ResourceException)t;
+                throw (ResourceException) t;
             } else {
                 throw new ResourceException(t);
             }
@@ -203,15 +213,15 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     //---- ManagedConnection API ----
-
     /**
-     * Get the physical connection handler.
-     * This bummer will be called in two situations:
+     * Get the physical connection handler. This bummer will be called in two
+     * situations:
      * <ol>
      * <li>When a new mc has bean created and a connection is needed
      * <li>When an mc has been fetched from the pool (returned in match*)
      * </ol>
-     * It may also be called multiple time without a cleanup, to support connection sharing.
+     * It may also be called multiple time without a cleanup, to support
+     * connection sharing.
      *
      * @param subject
      * @param info
@@ -225,12 +235,10 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
 
         // Null users are allowed!
         if (user != null && !user.equals(cred.name)) {
-            throw new SecurityException
-                    ("Password credentials not the same, reauthentication not allowed");
+            throw new SecurityException("Password credentials not the same, reauthentication not allowed");
         }
         if (cred.name != null && user == null) {
-            throw new SecurityException
-                    ("Password credentials not the same, reauthentication not allowed");
+            throw new SecurityException("Password credentials not the same, reauthentication not allowed");
         }
 
         user = cred.name; // Basically meaningless
@@ -271,7 +279,8 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     /**
      * Destroy the physical connection.
      *
-     * @throws ResourceException Could not property close the session and connection.
+     * @throws ResourceException Could not property close the session and
+     * connection.
      */
     @Override
     public final void destroy() throws ResourceException {
@@ -283,44 +292,46 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                 return;
             }
 
-        try {
-            con.setExceptionListener(null);
-        } catch (JMSException e) {
-            log.debug("Error unsetting the exception listener " + this, e);
-        }
-
-        destroyHandles();
-
-        try {
-            // Close session and connection
             try {
-                if (session != null) {
-                    session.close();
-                }
+                con.setExceptionListener(null);
             } catch (JMSException e) {
-                log.debug("Error closing session " + this, e);
+                log.debug("Error unsetting the exception listener " + this, e);
             }
+
+            destroyHandles();
+
             try {
-                if (xaTransacted && xaSession != null) {
-                    xaSession.close();
+                // Close session and connection
+                try {
+                    if (session != null) {
+                        session.close();
+                    }
+                } catch (JMSException e) {
+                    log.debug("Error closing session " + this, e);
                 }
-            } catch (JMSException e) {
-                log.debug("Error closing xaSession " + this, e);
+                try {
+                    if (xaTransacted && xaSession != null) {
+                        xaSession.close();
+                    }
+                } catch (JMSException e) {
+                    log.debug("Error closing xaSession " + this, e);
+                }
+                con.close();
+            } catch (Throwable e) {
+                throw new ResourceException("Could not properly close the session and connection", e);
+            } finally {
+                isDestroyed = true;
             }
-            con.close();
-        } catch (Throwable e) {
-            throw new ResourceException("Could not properly close the session and connection", e);
-        } finally {
-            isDestroyed = true;
-        }
         }
     }
 
     /**
-     * Cleans up, from the spec - The cleanup of ManagedConnection instance resets its client specific state.
-     * Does that mean that authentication should be redone.
+     * Cleans up, from the spec - The cleanup of ManagedConnection instance
+     * resets its client specific state. Does that mean that authentication
+     * should be redone.
      *
      * FIXME
+     *
      * @throws javax.resource.ResourceException
      */
     @Override
@@ -367,7 +378,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
      * Move a handler from one mc to this one.
      *
      * @param obj An object of type JmsSession.
-     * @throws ResourceException     Failed to associate connection.
+     * @throws ResourceException Failed to associate connection.
      * @throws IllegalStateException ManagedConnection in an illegal state.
      */
     @Override
@@ -381,8 +392,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             h.setManagedConnection(this);
             handles.add(h);
         } else {
-            throw new IllegalStateException
-                    ("ManagedConnection in an illegal state");
+            throw new IllegalStateException("ManagedConnection in an illegal state");
         }
     }
 
@@ -458,8 +468,16 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             return null;
         }
 
+        if(xaSession == null) {
+            log.warn("The underlying xaSession is NULL !!!!!");
+        }
+
         if (xaResource == null) {
             xaResource = xaSession.getXAResource();
+        }
+
+        if(xaResource == null) {
+            log.warn("The underlying xaResource is NULL !!!!!");
         }
 
         if (log.isTraceEnabled()) {
@@ -530,7 +548,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     // --- Exception listener implementation
-
     @Override
     public void onException(JMSException exception) {
         if (isDestroyed) {
@@ -560,7 +577,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     // --- Api to JmsSession
-
     /**
      * Get the session for this connection.
      *
@@ -572,6 +588,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
 
     /**
      * Get the JMSContext for this connection.
+     *
      * @return the JMSContext for this connection.
      */
     protected JMSContext getJMSContext() {
@@ -591,8 +608,8 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         }
 
         // convert to an array to avoid concurrent modification exceptions
-        ConnectionEventListener[] list =
-                listeners.toArray(new ConnectionEventListener[listeners.size()]);
+        ConnectionEventListener[] list
+                = listeners.toArray(new ConnectionEventListener[listeners.size()]);
 
         for (int i = 0; i < list.length; i++) {
             switch (type) {
@@ -632,7 +649,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     // --- Used by MCF
-
     /**
      * Get the request info for this connection.
      *
@@ -660,7 +676,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     // --- Used by MetaData
-
     /**
      * Get the user name for this connection.
      *
@@ -684,91 +699,93 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                 return;
             }
 
-        boolean trace = log.isTraceEnabled();
-        ClassLoader oldTCCL = SecurityActions.getThreadContextClassLoader();
-        try {
-            SecurityActions.setThreadContextClassLoader(JmsManagedConnection.class.getClassLoader());
+            boolean trace = log.isTraceEnabled();
+            ClassLoader oldTCCL = SecurityActions.getThreadContextClassLoader();
+            try {
+                SecurityActions.setThreadContextClassLoader(JmsManagedConnection.class.getClassLoader());
 
-            Context context = JmsActivation.convertStringToContext(mcf.getJndiParameters());
-            Object factory;
-            boolean transacted = info.isTransacted();
-            int ack = transacted ? 0 : info.getAcknowledgeMode();
+                Context context = JmsActivation.convertStringToContext(mcf.getJndiParameters());
+                Object factory;
+                boolean transacted = info.isTransacted();
+                int ack = transacted ? Session.SESSION_TRANSACTED : info.getAcknowledgeMode();
 
-            String connectionFactory = mcf.getConnectionFactory();
-            if (connectionFactory == null) {
-                throw new IllegalStateException("No configured 'connectionFactory'.");
-            }
-            factory = context.lookup(connectionFactory);
-            con = createConnection(factory, user, pwd);
-            if (info.getClientID() != null && !info.getClientID().equals(con.getClientID())) {
-                con.setClientID(info.getClientID());
-            }
-
-            if (con instanceof XAConnection && transacted) {
-                switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        xaSession = ((XAQueueConnection) con).createXAQueueSession();
-                        session = ((XAQueueSession)xaSession).getQueueSession();
-                        break;
-                    case JmsConnectionFactory.TOPIC:
-                        xaSession = ((XATopicConnection) con).createXATopicSession();
-                        session = ((XATopicSession)xaSession).getTopicSession();
-                        break;
-                    default:
-                        xaSession = ((XAConnection) con).createXASession();
-                        session = xaSession.getSession();
-                        break;
+                String connectionFactory = mcf.getConnectionFactory();
+                if (connectionFactory == null) {
+                    throw new IllegalStateException("No configured 'connectionFactory'.");
                 }
-                xaTransacted = true;
-            } else {
-                switch (mcf.getProperties().getType()) {
-                    case JmsConnectionFactory.QUEUE:
-                        session = ((QueueConnection) con).createQueueSession(transacted, ack);
-                        break;
-                    case JmsConnectionFactory.TOPIC:
-                        session = ((TopicConnection) con).createTopicSession(transacted, ack);
-                        break;
-                    default:
-                        session = con.createSession(transacted, ack);
-                        break;
+                factory = context.lookup(connectionFactory);
+                con = createConnection(factory, user, pwd, transacted, ack);
+                if (info.getClientID() != null && !info.getClientID().equals(con.getClientID())) {
+                    con.setClientID(info.getClientID());
                 }
+
+                if (con instanceof XAConnection && transacted) {
+                    switch (mcf.getProperties().getType()) {
+                        case JmsConnectionFactory.QUEUE:
+                            xaSession = ((XAQueueConnection) con).createXAQueueSession();
+                            session = ((XAQueueSession) xaSession).getQueueSession();
+                            break;
+                        case JmsConnectionFactory.TOPIC:
+                            xaSession = ((XATopicConnection) con).createXATopicSession();
+                            session = ((XATopicSession) xaSession).getTopicSession();
+                            break;
+                        default:
+                            xaSession = ((XAConnection) con).createXASession();
+                            session = xaSession.getSession();
+                            break;
+                    }
+                    xaTransacted = true;
+                } else {
+                    switch (mcf.getProperties().getType()) {
+                        case JmsConnectionFactory.QUEUE:
+                            session = ((QueueConnection) con).createQueueSession(transacted, ack);
+                            break;
+                        case JmsConnectionFactory.TOPIC:
+                            session = ((TopicConnection) con).createTopicSession(transacted, ack);
+                            break;
+                        default:
+                            session = con.createSession(transacted, ack);
+                            break;
+                    }
+                    if (trace) {
+                        log.trace("Using a non-XA Connection.  "
+                                + "It will not be able to participate in a Global UOW");
+                    }
+                }
+                con.setExceptionListener(this);
                 if (trace) {
-                    log.trace("Using a non-XA Connection.  " +
-                            "It will not be able to participate in a Global UOW");
+                    log.trace("created connection: " + con);
                 }
-            }
-            con.setExceptionListener(this);
-            if (trace) {
-                log.trace("created connection: " + con);
+
+                log.debug("xaSession=" + xaSession + ", Session=" + session);
+                log.debug("transacted=" + transacted + ", ack=" + ack);
+                isSetUp = true;
+            } catch (NamingException | JMSException e) {
+                throw new ResourceException("Unable to setup connection", e);
+            } finally {
+                SecurityActions.setThreadContextClassLoader(oldTCCL);
             }
 
-            log.debug("xaSession=" + xaSession + ", Session=" + session);
-            log.debug("transacted=" + transacted + ", ack=" + ack);
-            isSetUp = true;
-        } catch (NamingException | JMSException e) {
-            throw new ResourceException("Unable to setup connection", e);
-        } finally {
-            SecurityActions.setThreadContextClassLoader(oldTCCL);
         }
 
     }
 
-	}
-
     /**
-     * Create a connection from the given factory.  An XA connection will
-     * be created if possible.
+     * Create a connection from the given factory.An XA connection will be
+     * created if possible.
      *
-     * @param factory  An object that implements ConnectionFactory,
-     *                 XAQConnectionFactory
+     * @param factory An object that implements ConnectionFactory,
+     * XAQConnectionFactory
      * @param username The username to use or null for no user.
      * @param password The password for the given username or null if no
-     *                 username was specified.
+     * username was specified.
+     * @param transacted
+     * @param ack
      * @return A connection.
-     * @throws JMSException             Failed to create connection.
+     * @throws JMSException Failed to create connection.
      * @throws IllegalArgumentException Factory is null or invalid.
      */
-    public Connection createConnection(final Object factory, final String username, final String password)
+    public Connection createConnection(final Object factory, final String username, final String password, boolean transacted, int ack)
             throws JMSException {
         if (factory == null) {
             throw new IllegalArgumentException("factory is null");
@@ -787,64 +804,64 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                     case JmsConnectionFactory.QUEUE: {
                         Connection realConnection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
                         Connection realConnection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
                         Connection realConnection = xaConnFactory.createXAConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.JMS_CONTEXT:
                         try {
-                            xaContext = xaConnFactory.createXAContext(username, password);
-                            context = xaContext.getContext();
-                            connection = new JmsConnectionContext(context);
-                        } catch (Exception e) {
-                            log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
-                                    + e.getMessage(), e);
-                            throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
-                        }
-                        break;
+                        xaContext = xaConnFactory.createXAContext(username, password);
+                        context = xaContext.getContext();
+                        connection = new JmsConnectionContext(context);
+                    } catch (Exception e) {
+                        log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
+                                + e.getMessage(), e);
+                        throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
+                    }
+                    break;
                 }
             } else {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
                         Connection realConnection = ((XAQueueConnectionFactory) xaConnFactory).createXAQueueConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
                         Connection realConnection = ((XATopicConnectionFactory) xaConnFactory).createXATopicConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
                         Connection realConnection = xaConnFactory.createXAConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, true));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.JMS_CONTEXT:
                         try {
-                            xaContext = xaConnFactory.createXAContext();
-                            context = xaContext.getContext();
-                            connection = new JmsConnectionContext(context);
-                        } catch (Exception e) {
-                            log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
-                                    + e.getMessage(), e);
-                            throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
-                        }
-                        break;
+                        xaContext = xaConnFactory.createXAContext();
+                        context = xaContext.getContext();
+                        connection = new JmsConnectionContext(context);
+                    } catch (Exception e) {
+                        log.fatal("The JMS provider does not support the JMS 2.0 XAJMSContext interface: "
+                                + e.getMessage(), e);
+                        throw new JMSException("The JMS provider does not support the JMS 2.0 XAJMSContext interface");
+                    }
+                    break;
                 }
             }
             log.debug("created XAConnection: " + connection);
@@ -855,64 +872,64 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
                     case JmsConnectionFactory.QUEUE: {
                         Connection realConnection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
                         Connection realConnection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
                         Connection realConnection = nonXAConnFactory.createConnection(username, password);
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.JMS_CONTEXT:
                         try {
-                            context = nonXAConnFactory.createContext(username, password);
-                            connection = new JmsConnectionContext(context);
-                        } catch (Exception e) {
-                            log.fatal(
-                                    "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
-                                    e);
-                            throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
-                        }
-                        break;
+                        context = nonXAConnFactory.createContext(username, password);
+                        connection = new JmsConnectionContext(context);
+                    } catch (Exception e) {
+                        log.fatal(
+                                "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
+                                e);
+                        throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
+                    }
+                    break;
                 }
             } else {
                 switch (mcf.getProperties().getType()) {
                     case JmsConnectionFactory.QUEUE: {
                         Connection realConnection = ((QueueConnectionFactory) nonXAConnFactory).createQueueConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.TOPIC: {
                         Connection realConnection = ((TopicConnectionFactory) nonXAConnFactory).createTopicConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.AGNOSTIC: {
                         Connection realConnection = nonXAConnFactory.createConnection();
                         context = null;
-                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, false));
+                        connection = new JmsConnectionSession(realConnection, createSession(realConnection, transacted, ack));
                         break;
                     }
                     case JmsConnectionFactory.JMS_CONTEXT:
                         try {
-                            context = nonXAConnFactory.createContext();
-                            connection = new JmsConnectionContext(context);
-                        } catch (Exception e) {
-                            log.fatal(
-                                    "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
-                                    e);
-                            throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
-                        }
-                        break;
+                        context = nonXAConnFactory.createContext();
+                        connection = new JmsConnectionContext(context);
+                    } catch (Exception e) {
+                        log.fatal(
+                                "The JMS provider does not support the JMS 2.0 JMSContext interface: " + e.getMessage(),
+                                e);
+                        throw new JMSException("The JMS provider does not support the JMS 2.0 JMSContext interface");
+                    }
+                    break;
                 }
             }
 
@@ -932,10 +949,15 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
         return true;
     }
 
-    private Session createSession(Connection connection, boolean xaTransacted) throws JMSException {
-        if(hasMethod(connection, "createSession")) {
-            return connection.createSession();
+    private Session createSession(Connection connection, boolean xaTransacted, int ack) throws JMSException {
+        Session session;
+        if (hasMethod(connection, "createSession")) {
+            session = connection.createSession();
+            log.debug("Session " + session + " created with createSession()");
+        } else {
+            session = connection.createSession(xaTransacted, ack);
+            log.debug("Session " + session + " created with createSession(" + xaTransacted + ", " + ack + ")");
         }
-        return connection.createSession(xaTransacted, Session.AUTO_ACKNOWLEDGE);
+        return session;
     }
 }

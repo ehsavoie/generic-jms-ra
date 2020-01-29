@@ -269,12 +269,14 @@ public class JmsActivation implements ExceptionListener {
         }
     }
 
+    @Override
     public void onException(JMSException exception) {
         handleFailure(exception);
     }
 
+    @Override
     public String toString() {
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
         buffer.append(defaultToString(this)).append('(');
         buffer.append("spec=").append(defaultToString(spec));
         buffer.append(" endpointFactory=").append(defaultToString(endpointFactory));
