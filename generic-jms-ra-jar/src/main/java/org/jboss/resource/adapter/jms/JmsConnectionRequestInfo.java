@@ -55,9 +55,6 @@ public class JmsConnectionRequestInfo implements ConnectionRequestInfo {
 
     /**
      * Create with specified properties.
-     * @param transacted
-     * @param acknowledgeMode
-     * @param type
      */
     public JmsConnectionRequestInfo(final boolean transacted, final int acknowledgeMode, final int type) {
         this.transacted = transacted;
@@ -116,6 +113,7 @@ public class JmsConnectionRequestInfo implements ConnectionRequestInfo {
         return type;
     }
 
+    @Override
     public boolean equals(Object obj) {
         if (obj == null) {
             return false;

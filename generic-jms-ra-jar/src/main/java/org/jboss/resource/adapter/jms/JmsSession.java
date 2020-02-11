@@ -167,7 +167,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
     JMSContext getJMSContext() {
         // ensure that the connection is opened
         if (mc == null) {
-            throw new JMSRuntimeException("The session is closed");
+            throw new JMSRuntimeException("The session " + this + " is closed");
         }
 
         JMSContext context = mc.getJMSContext();
@@ -252,10 +252,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
 
     @Override
     public boolean getTransacted() throws JMSException {
-        Session session = getSession(); // check closed
-        if (session.getTransacted() != info.isTransacted()) {
-            throw new IllegalStateException("Expecting a transacted session " + info.isTransacted() + " but got a real sessin that is transacted " + session.getTransacted());
-        }
+        getSession(); // check closed
         return info.isTransacted();
     }
 
@@ -473,6 +470,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
         }
     }
 
+    @Override
     public TemporaryTopic createTemporaryTopic() throws JMSException {
         if (info.getType() == JmsConnectionFactory.QUEUE) {
             throw new IllegalStateException("Cannot create temporary topic for javax.jms.QueueSession");
@@ -495,6 +493,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
         }
     }
 
+    @Override
     public void unsubscribe(String name) throws JMSException {
         if (info.getType() == JmsConnectionFactory.QUEUE) {
             throw new IllegalStateException("Cannot unsubscribe for javax.jms.QueueSession");
@@ -513,6 +512,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
     }
 
     //--- QueueSession API
+    @Override
     public QueueBrowser createBrowser(Queue queue) throws JMSException {
 
         if (info.getType() == JmsConnectionFactory.TOPIC) {
@@ -900,7 +900,7 @@ public class JmsSession implements Session, QueueSession, TopicSession {
 
     void closeSession() throws JMSException {
         if (mc != null) {
-            log.trace("Closing session");
+            log.trace("Closing session " + this);
 
             try {
                 mc.stop();
@@ -981,11 +981,11 @@ public class JmsSession implements Session, QueueSession, TopicSession {
     }
 
     //
-    @Override
-    public String toString() {
-        return "JmsSession{" + "mc=" + mc + ", lockedMC=" + lockedMC
-                + ", lockCount=" + lockCount + ", info=" + info + ", sf=" + sf
-                + ", consumers=" + consumers + ", producers=" + producers
-                + ", trace=" + trace + '}';
-    }
+//    @Override
+//    public String toString() {
+//        return "JmsSession{" + "mc=" + mc + ", lockedMC=" + lockedMC
+//                + ", lockCount=" + lockCount + ", info=" + info + ", sf=" + sf
+//                + ", consumers=" + consumers + ", producers=" + producers
+//                + ", trace=" + trace + '}';
+//    }
 }

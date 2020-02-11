@@ -468,16 +468,8 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             return null;
         }
 
-        if(xaSession == null) {
-            log.warn("The underlying xaSession is NULL !!!!!");
-        }
-
         if (xaResource == null) {
             xaResource = xaSession.getXAResource();
-        }
-
-        if(xaResource == null) {
-            log.warn("The underlying xaResource is NULL !!!!!");
         }
 
         if (log.isTraceEnabled()) {
@@ -588,7 +580,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
 
     /**
      * Get the JMSContext for this connection.
-     *
      * @return the JMSContext for this connection.
      */
     protected JMSContext getJMSContext() {
@@ -691,9 +682,6 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
      * @throws ResourceException
      */
     private void setup() throws ResourceException {
-        if (isSetUp) {
-            return;
-        }
         synchronized (this) {
             if (isSetUp) {
                 return;
@@ -765,9 +753,7 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
             } finally {
                 SecurityActions.setThreadContextClassLoader(oldTCCL);
             }
-
         }
-
     }
 
     /**
@@ -950,14 +936,34 @@ public class JmsManagedConnection implements ManagedConnection, ExceptionListene
     }
 
     private Session createSession(Connection connection, boolean xaTransacted, int ack) throws JMSException {
-        Session session;
+        Session internalSession;
         if (hasMethod(connection, "createSession")) {
-            session = connection.createSession();
-            log.debug("Session " + session + " created with createSession()");
+            internalSession = connection.createSession();
+            log.debug("Session " + internalSession + " created with createSession()");
         } else {
-            session = connection.createSession(xaTransacted, ack);
-            log.debug("Session " + session + " created with createSession(" + xaTransacted + ", " + ack + ")");
+            internalSession = connection.createSession(xaTransacted, ack);
+            log.debug("Session " + internalSession + " created with createSession(" + xaTransacted + ", " + ack + ")");
         }
-        return session;
+        return internalSession;
+    }
+
+    @Override
+    public String toString() {
+        return "JmsManagedConnection{"
+                + "mcf=" + mcf
+                + ", info=" + info
+                + ", user=" + user
+                + ", pwd=" + pwd
+                + ", isSetUp=" + isSetUp
+                + ", isDestroyed=" + isDestroyed
+                + ", lock=" + lock
+                + ", con=" + con
+                + ", session=" + (session != null ? (session.getClass() + "@" + session.hashCode()) : "null")
+                + ", xaSession=" + (xaSession != null ? (xaSession.getClass() + "@" + xaSession.hashCode()) : "null")
+                + ", xaResource=" + xaResource
+                + ", xaTransacted=" + xaTransacted
+                + ", context=" + context
+                + ", xaContext=" + xaContext
+                + '}';
     }
 }

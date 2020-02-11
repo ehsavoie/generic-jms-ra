@@ -36,6 +36,7 @@ import javax.resource.spi.ConnectionManager;
 import javax.resource.spi.ManagedConnectionFactory;
 
 import org.jboss.logging.Logger;
+import org.jboss.resource.adapter.jms.util.TransactionUtils;
 //import org.jboss.resource.connectionmanager.JTATransactionChecker;
 //import org.jboss.util.NestedSQLException;
 
@@ -51,6 +52,7 @@ import org.jboss.logging.Logger;
  * @author <a href="mailto:adrian@jboss.com">Adrian Brock</a>
  */
 public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Referenceable {
+
     private static final long serialVersionUID = -5135366013101194277L;
 
     private static final Logger log = Logger.getLogger(JmsConnectionFactoryImpl.class);
@@ -153,14 +155,13 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
         Throwable cause;
         Throwable result = t;
 
-        while(null != (cause = result.getCause())  && (result != cause) ) {
+        while (null != (cause = result.getCause()) && (result != cause)) {
             result = cause;
         }
         return result;
     }
 
     // --- TopicConnectionFactory
-
     public TopicConnection createTopicConnection() throws JMSException {
         TopicConnection tc = new JmsSessionFactoryImpl(mcf, cm, TOPIC);
 
@@ -185,7 +186,7 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
     }
 
     // --- JMS 1.1
-
+    @Override
     public Connection createConnection() throws JMSException {
         Connection c = new JmsSessionFactoryImpl(mcf, cm, AGNOSTIC);
 
@@ -196,6 +197,7 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
         return c;
     }
 
+    @Override
     public Connection createConnection(String userName, String password) throws JMSException {
         JmsSessionFactoryImpl s = new JmsSessionFactoryImpl(mcf, cm, AGNOSTIC);
         s.setUserName(userName);
@@ -210,8 +212,6 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
     }
 
     // -- JMS 2.0
-
-
     @Override
     public JMSContext createContext() {
         return createContext(null, null);
@@ -219,7 +219,7 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
 
     @Override
     public JMSContext createContext(String userName, String password) {
-        return createContext(userName, password, Session.AUTO_ACKNOWLEDGE);
+        return createContext(userName, password, TransactionUtils.isInTransaction() ? Session.SESSION_TRANSACTED : Session.AUTO_ACKNOWLEDGE);
     }
 
     @Override
@@ -232,16 +232,18 @@ public class JmsConnectionFactoryImpl implements JmsConnectionFactory, Reference
         JmsSessionFactoryImpl s = new JmsSessionFactoryImpl(mcf, cm, JMS_CONTEXT);
         s.setUserName(userName);
         s.setPassword(password);
+        int effectiveSessionMode = sessionMode;
+        if (TransactionUtils.isInTransaction()) {
+            effectiveSessionMode = Session.SESSION_TRANSACTED;
+        }
         try {
-            JmsSession session = s.allocateConnection(sessionMode == Session.SESSION_TRANSACTED, sessionMode, JMS_CONTEXT);
+            JmsSession session = s.allocateConnection((effectiveSessionMode == Session.SESSION_TRANSACTED), effectiveSessionMode, JMS_CONTEXT);
             return new GenericJmsContext(s, session);
         } catch (JMSException e) {
-            if (s != null) {
-                try {
-                    s.close();
-                } catch (JMSException e2) {
-                    // ignored by intention
-                }
+            try {
+                s.close();
+            } catch (JMSException e2) {
+                // ignored by intention
             }
             JMSException jmse = findRootJMSException(e);
             if (jmse instanceof JMSSecurityException) {

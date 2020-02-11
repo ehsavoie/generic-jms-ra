@@ -25,8 +25,8 @@ import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.Set;
 
-import javax.jms.Connection;
 import javax.jms.ConnectionMetaData;
+import javax.jms.Session;
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionManager;
 import javax.resource.spi.ConnectionRequestInfo;
@@ -36,6 +36,7 @@ import javax.security.auth.Subject;
 
 //import org.jboss.jms.jndi.JMSProviderAdapter;
 import org.jboss.logging.Logger;
+import org.jboss.resource.adapter.jms.util.TransactionUtils;
 
 /**
  * Jms ManagedConectionFactory
